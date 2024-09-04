@@ -147,48 +147,51 @@ class PythagoreanTheorem(Scene):
 
 
 class PythagoreanTheoremProof(Scene):
-    def construct(self):
-        # Colors
-        colors = {
-            "yellow": "#FFFF00",
-            "orange": "#FFA500",
-            "red": "#FF0000",
-            "green": "#00FF00"
-        }
-
-        self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
-        ptB = np.array([-0.5 * self.base, 0, 0])
-        ptC = np.array([0.5 * self.base, 0, 0])
-        ptA = np.array([0.5 * self.base, self.height, 0])
-        triangle = Polygon(ptB, ptC, ptA, color=WHITE)
+    def get_triangle(self, ptA, ptB, ptC, color, rotation=0, shift=0):
+        # Create the right-angled triangle
+        triangle = Polygon(ptB, ptC, ptA, color=color)
+        
+        # Label the sides
+        # a = MathTex("a").next_to(triangle, DOWN)
+        # b = MathTex("b").next_to(triangle, RIGHT)
+        # c = MathTex("c").next_to(triangle.get_center(), UP+LEFT)
         labels = VGroup(
             MathTex("a").next_to(triangle, DOWN),
             MathTex("b").next_to(triangle, RIGHT),
             MathTex("c").next_to(triangle.get_center(), UP+LEFT)
         )
-
-        self.play(Create(triangle), Write(labels))
+        
+        return {"figure": triangle, "sides": labels}
+        
+    def draw_triangle(self, color):
+        ptB = np.array([-0.5 * self.base, 0, 0])
+        ptC = np.array([0.5 * self.base, 0, 0])
+        ptA = np.array([0.5 * self.base, self.height, 0])
+        self.triangle = self.get_triangle(ptA, ptB, ptC, color=color)
+        # Show triangle and labels
+        # self.play(Create(self.triangle["figure"]))
+        # self.play(*([Write(side) for side in self.triangle["sides"]]))
+        self.play(Create(self.triangle["figure"]), Write(self.triangle["sides"]))
         self.wait()
-
+        
+    def draw_triangle_copies(self, colors):
         # Create 4 copies of the triangle with different colors
-        triangles = VGroup(
+        self.triangles = VGroup(
             *[
-                triangle.copy().set_fill(color, opacity=0.5) 
+                self.triangle["figure"].copy().set_fill(color, opacity=0.5) 
                 for color in colors.values()
             ]
         )
-        a_labels = VGroup(*[labels[0].copy() for _ in colors])
-        b_labels = VGroup(*[labels[1].copy() for _ in colors])
-        c_labels = VGroup(*[labels[2].copy() for _ in colors])
+        a_labels = VGroup(*[self.triangle["sides"][0].copy() for _ in colors])
+        b_labels = VGroup(*[self.triangle["sides"][1].copy() for _ in colors])
+        c_labels = VGroup(*[self.triangle["sides"][2].copy() for _ in colors])
+        self.lbl_copies = {"a": a_labels, "b": b_labels, "c": c_labels}
         #[colors["yellow"], colors["orange"], colors["red"], colors["green"]]])
 
-        self.play(Create(triangles))
+        self.play(Create(self.triangles))
         self.wait()
-
-        # Arrange triangles to form a square
-        square_side = triangle.get_width() + triangle.get_height()
-        square = Square(side_length=square_side, color=WHITE)
-        
+    
+    def draw_first_arrangement(self, square):
         # Define the first arrangement positions and rotations
         first_arrangement = [
             {"pos": square.get_corner(DL), "rot": -PI/2, "aligned_edge": DL},
@@ -198,7 +201,6 @@ class PythagoreanTheoremProof(Scene):
         ]
 
         # Animate the triangles moving into the first arrangement
-        mid = (self.base + self.height) / 2
         a_pos = [
             (UP, LEFT * (self.base / 2)),
             (RIGHT, UP * (self.base / 2)),
@@ -218,44 +220,45 @@ class PythagoreanTheoremProof(Scene):
             (DOWN, UP * (self.height / 1.2) + RIGHT * (self.base / 3))
         ]
         self.play(
-            ReplacementTransform(triangle, square),
+            ReplacementTransform(self.triangle["figure"], square),
             *[
                 triangle.animate.rotate(arr["rot"]).move_to(
                     arr["pos"], aligned_edge=arr["aligned_edge"])
-                for triangle, arr in zip(triangles, first_arrangement)
+                for triangle, arr in zip(self.triangles, first_arrangement)
             ],
-            FadeOut(labels),
+            FadeOut(self.triangle["sides"]),
             *[
                 label.animate.next_to(square, pos[0]).shift(pos[1])
-                for label, pos in zip(a_labels, a_pos)
-            ],
-            *[
-                label.animate.next_to(square, pos[0]).shift(pos[1])
-                for label, pos in zip(b_labels, b_pos)
+                for label, pos in zip(self.lbl_copies["a"], a_pos)
             ],
             *[
                 label.animate.next_to(square, pos[0]).shift(pos[1])
-                for label, pos in zip(c_labels, c_pos)
+                for label, pos in zip(self.lbl_copies["b"], b_pos)
+            ],
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(self.lbl_copies["c"], c_pos)
             ],
             run_time=2
         )
 
         # Update the current rotation of each triangle
-        current_rotations = [arr["rot"] for arr in first_arrangement]
+        self.triangle_rotations = [arr["rot"] for arr in first_arrangement]
 
-        center_square = Square(
+        self.center_square = Square(
             side_length=self.hypotenuse,
             color=BLUE,
             fill_opacity=0.5
         )
         ang = np.arctan(self.height / self.base)
-        center_square.rotate(ang).move_to(square.get_center())
+        self.center_square.rotate(ang).move_to(square.get_center())
 
-        c_squared = Text("c²").move_to(center_square.get_center())
+        self.c_squared = Text("c²").move_to(self.center_square.get_center())
 
-        self.play(Create(center_square), Write(c_squared))
+        self.play(Create(self.center_square), Write(self.c_squared))
         self.wait()
-
+        
+    def draw_second_arrangement(self, square):
         # Define the second arrangement positions and rotations
         second_arrangement = [
             {"pos": square.get_corner(DL), "rot": -PI, "aligned_edge": DL},
@@ -282,18 +285,18 @@ class PythagoreanTheoremProof(Scene):
                 triangle.animate.rotate(arr["rot"] - curr_rot).move_to(
                     arr["pos"], aligned_edge=arr["aligned_edge"])
                 for triangle, arr, curr_rot in zip(
-                    triangles, second_arrangement, current_rotations)
+                    self.triangles, second_arrangement, self.triangle_rotations)
             ],
-            FadeOut(center_square),
-            FadeOut(c_squared),
-            FadeOut(c_labels),
+            FadeOut(self.center_square),
+            FadeOut(self.c_squared),
+            FadeOut(self.lbl_copies["c"]),
             *[
                 label.animate.next_to(square, pos[0]).shift(pos[1])
-                for label, pos in zip(a_labels, a_pos)
+                for label, pos in zip(self.lbl_copies["a"], a_pos)
             ],
             *[
                 label.animate.next_to(square, pos[0]).shift(pos[1])
-                for label, pos in zip(b_labels, b_pos)
+                for label, pos in zip(self.lbl_copies["b"], b_pos)
             ],
             run_time=2
         )
@@ -317,8 +320,34 @@ class PythagoreanTheoremProof(Scene):
             Write(b_squared_text)
         )
         self.wait()
+        
+    def prove(self):
+        # Colors
+        colors = {
+            "yellow": "#FFFF00",
+            "orange": "#FFA500",
+            "red": "#FF0000",
+            "green": "#00FF00"
+        }
+        
+        self.draw_triangle_copies(colors=colors)
+
+        # Arrange triangles to form a square
+        square_side = self.base + self.height
+        square = Square(side_length=square_side, color=WHITE)
+        
+        self.draw_first_arrangement(square=square)
+
+        self.draw_second_arrangement(square=square)
 
         # Conclusion
         conclusion = Text("c² = a² + b²").scale(0.8).to_edge(DOWN)
         self.play(Write(conclusion))
         self.wait(2)
+        
+    def construct(self):
+        self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
+        
+        self.draw_triangle(color=WHITE)
+        
+        self.prove()
