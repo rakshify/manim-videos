@@ -153,13 +153,12 @@ class PythagoreanTheoremProof(Scene):
             "yellow": "#FFFF00",
             "orange": "#FFA500",
             "red": "#FF0000",
-            "green": "#00FF00",
-            "blue": "#0000FF"
+            "green": "#00FF00"
         }
 
         self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
-        ptB = np.array([-0.5 * self.base, 0, 0])#0.5 * self.base * LEFT
-        ptC = np.array([0.5 * self.base, 0, 0])#0.5 * self.base * RIGHT
+        ptB = np.array([-0.5 * self.base, 0, 0])
+        ptC = np.array([0.5 * self.base, 0, 0])
         ptA = np.array([0.5 * self.base, self.height, 0])
         triangle = Polygon(ptB, ptC, ptA, color=WHITE)
         labels = VGroup(
@@ -168,25 +167,20 @@ class PythagoreanTheoremProof(Scene):
             MathTex("c").next_to(triangle.get_center(), UP+LEFT)
         )
 
-        # # Create the initial triangle
-        # triangle = Polygon(
-        #     np.array([0, 0, 0]),
-        #     np.array([3, 0, 0]),
-        #     np.array([0, 4, 0]),
-        #     color=WHITE
-        # )
-        # labels = VGroup(
-        #     Text("a").next_to(triangle, LEFT),
-        #     Text("b").next_to(triangle, DOWN),
-        #     Text("c").next_to(triangle.get_center(), UP+RIGHT)
-        # )
-
         self.play(Create(triangle), Write(labels))
         self.wait()
 
         # Create 4 copies of the triangle with different colors
-        triangles = VGroup(*[triangle.copy().set_fill(color, opacity=0.5) 
-                             for color in [colors["yellow"], colors["orange"], colors["red"], colors["green"]]])
+        triangles = VGroup(
+            *[
+                triangle.copy().set_fill(color, opacity=0.5) 
+                for color in colors.values()
+            ]
+        )
+        a_labels = VGroup(*[labels[0].copy() for _ in colors])
+        b_labels = VGroup(*[labels[1].copy() for _ in colors])
+        c_labels = VGroup(*[labels[2].copy() for _ in colors])
+        #[colors["yellow"], colors["orange"], colors["red"], colors["green"]]])
 
         self.play(Create(triangles))
         self.wait()
@@ -204,12 +198,44 @@ class PythagoreanTheoremProof(Scene):
         ]
 
         # Animate the triangles moving into the first arrangement
+        mid = (self.base + self.height) / 2
+        a_pos = [
+            (UP, LEFT * (self.base / 2)),
+            (RIGHT, UP * (self.base / 2)),
+            (LEFT, DOWN * (self.base / 2)),
+            (DOWN, RIGHT * (self.base / 2))
+        ]
+        b_pos = [
+            (LEFT, UP * (self.height / 2)),
+            (UP, RIGHT * (self.height / 2)),
+            (DOWN, LEFT * (self.height / 2)),
+            (RIGHT, DOWN * (self.height / 2))
+        ]
+        c_pos = [
+            (UP, DOWN * (self.height / 1.2) + LEFT * (self.base / 3)),
+            (UP, DOWN * (self.height / 1.2) + RIGHT * (self.base / 3)),
+            (DOWN, UP * (self.height / 1.2) + LEFT * (self.base / 3)),
+            (DOWN, UP * (self.height / 1.2) + RIGHT * (self.base / 3))
+        ]
         self.play(
             ReplacementTransform(triangle, square),
             *[
                 triangle.animate.rotate(arr["rot"]).move_to(
                     arr["pos"], aligned_edge=arr["aligned_edge"])
                 for triangle, arr in zip(triangles, first_arrangement)
+            ],
+            FadeOut(labels),
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(a_labels, a_pos)
+            ],
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(b_labels, b_pos)
+            ],
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(c_labels, c_pos)
             ],
             run_time=2
         )
@@ -219,7 +245,7 @@ class PythagoreanTheoremProof(Scene):
 
         center_square = Square(
             side_length=self.hypotenuse,
-            color=colors["blue"],
+            color=BLUE,
             fill_opacity=0.5
         )
         ang = np.arctan(self.height / self.base)
@@ -232,13 +258,25 @@ class PythagoreanTheoremProof(Scene):
 
         # Define the second arrangement positions and rotations
         second_arrangement = [
-            {"pos": square.get_corner(UR), "rot": 0, "aligned_edge": UR},
-            {"pos": square.get_corner(UR), "rot": -PI/2, "aligned_edge": UL},
-            {"pos": square.get_corner(DL), "rot": 0, "aligned_edge": DL},
-            {"pos": square.get_corner(DL), "rot": PI/2, "aligned_edge": DR}
+            {"pos": square.get_corner(DL), "rot": -PI, "aligned_edge": DL},
+            {"pos": square.get_corner(UR), "rot": 3 * PI / 2, "aligned_edge": UR},
+            {"pos": square.get_corner(UR), "rot": PI/2, "aligned_edge": UR},
+            {"pos": square.get_corner(DL), "rot": 0, "aligned_edge": DL}
         ]
 
         # Animate the triangles moving into the second arrangement
+        a_pos = [
+            (UP, LEFT * (self.base / 2)),
+            (RIGHT, UP * (self.base / 2)),
+            (LEFT, UP * (self.height / 2)),
+            (DOWN, LEFT * (self.height / 2))
+        ]
+        b_pos = [
+            (LEFT, DOWN * (self.base / 2)),
+            (UP, RIGHT * (self.height / 2)),
+            (DOWN, RIGHT * (self.base / 2)),
+            (RIGHT, DOWN * (self.height / 2))
+        ]
         self.play(
             *[
                 triangle.animate.rotate(arr["rot"] - curr_rot).move_to(
@@ -248,11 +286,24 @@ class PythagoreanTheoremProof(Scene):
             ],
             FadeOut(center_square),
             FadeOut(c_squared),
+            FadeOut(c_labels),
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(a_labels, a_pos)
+            ],
+            *[
+                label.animate.next_to(square, pos[0]).shift(pos[1])
+                for label, pos in zip(b_labels, b_pos)
+            ],
             run_time=2
         )
 
-        a_squared = Square(side_length=4, color=colors["blue"], fill_opacity=0.5)
-        b_squared = Square(side_length=3, color=colors["blue"], fill_opacity=0.5)
+        a_squared = Square(
+            side_length=self.base, color=BLUE, fill_opacity=0.5
+        )
+        b_squared = Square(
+            side_length=self.height, color=BLUE, fill_opacity=0.5
+        )
         a_squared.move_to(square.get_corner(UL), aligned_edge=UL)
         b_squared.move_to(square.get_corner(DR), aligned_edge=DR)
 
@@ -271,102 +322,3 @@ class PythagoreanTheoremProof(Scene):
         conclusion = Text("c² = a² + b²").scale(0.8).to_edge(DOWN)
         self.play(Write(conclusion))
         self.wait(2)
-
-# class PythagoreanTheoremProof(Scene):
-#     def construct(self):
-#         # Colors
-#         colors = {
-#             "yellow": "#FFFF00",
-#             "orange": "#FFA500",
-#             "red": "#FF0000",
-#             "green": "#00FF00",
-#             "blue": "#0000FF"
-#         }
-
-#         self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
-#         ptB = np.array([-0.5 * self.base, 0, 0])#0.5 * self.base * LEFT
-#         ptC = np.array([0.5 * self.base, 0, 0])#0.5 * self.base * RIGHT
-#         ptA = np.array([0.5 * self.base, self.height, 0])
-#         triangle = Polygon(ptB, ptC, ptA, color=WHITE)
-#         labels = VGroup(
-#             MathTex("a").next_to(triangle, DOWN),
-#             MathTex("b").next_to(triangle, RIGHT),
-#             MathTex("c").next_to(triangle.get_center(), UP+LEFT)
-#         )
-
-#         # # Create the initial triangle
-#         # triangle = Polygon(
-#         #     np.array([0, 0, 0]),
-#         #     np.array([3, 0, 0]),
-#         #     np.array([0, 4, 0]),
-#         #     color=WHITE
-#         # )
-#         # labels = VGroup(
-#         #     Text("a").next_to(triangle, LEFT),
-#         #     Text("b").next_to(triangle, DOWN),
-#         #     Text("c").next_to(triangle.get_center(), UP+RIGHT)
-#         # )
-
-#         self.play(Create(triangle), Write(labels))
-#         self.wait()
-
-#         # Create 4 copies of the triangle with different colors
-#         triangles = VGroup(*[triangle.copy().set_fill(color, opacity=0.5) 
-#                              for color in [colors["yellow"], colors["orange"], colors["red"], colors["green"]]])
-
-#         self.play(Create(triangles))
-#         self.wait()
-
-#         # Arrange triangles to form a square
-#         square_side = triangle.get_width() + triangle.get_height()
-#         square = Square(side_length=square_side, color=WHITE)
-        
-#         # Rotate and position triangles
-#         triangles[0].rotate(-PI/2).move_to(square.get_corner(UL), aligned_edge=UL)
-#         triangles[1].rotate(PI).move_to(square.get_corner(UR), aligned_edge=UR)
-#         triangles[2].rotate(PI/2).move_to(square.get_corner(DR), aligned_edge=DR)
-#         triangles[3].move_to(square.get_corner(DL), aligned_edge=DL)
-
-#         center_square = Square(side_length=3, color=colors["blue"], fill_opacity=0.5)
-#         center_square.move_to(square.get_center())
-
-#         c_squared = Text("c²").move_to(center_square.get_center())
-
-#         self.play(
-#             ReplacementTransform(triangle, square),
-#             *[ReplacementTransform(triangle.copy(), target) for triangle, target in zip(triangles, triangles)],
-#             Create(center_square),
-#             Write(c_squared)
-#         )
-#         self.wait()
-
-#         # Rearrange triangles
-#         self.play(
-#             triangles[0].animate.rotate(PI/2).move_to(square.get_corner(UR), aligned_edge=UR),
-#             triangles[1].animate.rotate(-PI/2).move_to(square.get_corner(UR), aligned_edge=UL),
-#             triangles[2].animate.rotate(-PI/2).move_to(square.get_corner(DL), aligned_edge=DL),
-#             triangles[3].animate.rotate(PI/2).move_to(square.get_corner(DL), aligned_edge=DR),
-#             FadeOut(center_square),
-#             FadeOut(c_squared)
-#         )
-
-#         a_squared = Square(side_length=4, color=colors["blue"], fill_opacity=0.5)
-#         b_squared = Square(side_length=3, color=colors["blue"], fill_opacity=0.5)
-#         a_squared.move_to(square.get_corner(UL), aligned_edge=UL)
-#         b_squared.move_to(square.get_corner(DR), aligned_edge=DR)
-
-#         a_squared_text = Text("a²").move_to(a_squared.get_center())
-#         b_squared_text = Text("b²").move_to(b_squared.get_center())
-
-#         self.play(
-#             Create(a_squared),
-#             Create(b_squared),
-#             Write(a_squared_text),
-#             Write(b_squared_text)
-#         )
-#         self.wait()
-
-#         # Conclusion
-#         conclusion = Text("c² = a² + b²").scale(0.8).to_edge(DOWN)
-#         self.play(Write(conclusion))
-#         self.wait(2)
