@@ -1,5 +1,9 @@
 en
-In a right-angled triangle, the square of the length of the hypotenuse is equal to the sum of the squares of the lengths of its base and height.
+In a right-angled triangle, \\
+the square of the length of the hypotenuse is equal to \\
+the sum of the squares of the lengths of its base and height.
 ---
 hn
-समकोण त्रिभुज में, कर्ण की लंबाई का वर्ग उसके आधार और ऊँचाई की लंबाइयों के वर्गों के योग के बराबर होता है।
+समकोण त्रिभुज में, \\
+कर्ण की लंबाई का वर्ग उसके आधार और ऊँचाई \\
+की लंबाइयों के वर्गों के योग के बराबर होता है।

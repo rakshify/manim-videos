@@ -1,33 +1,13 @@
+import os 
 from typing import List
 
 from manim import *
 
+from src.utils import read_statement
+
 class PythagoreanTheorem(Scene):
-    def get_triangle(self, ptA, ptB, ptC, color, rotation=0, shift=0):
-        # Create the right-angled triangle
-        triangle = Polygon(ptB, ptC, ptA, color=color)
-        
-        # Label the sides
-        a = MathTex("a").next_to(triangle, DOWN)
-        b = MathTex("b").next_to(triangle, RIGHT)
-        c = MathTex("c").next_to(triangle.get_center(), UP+LEFT)
-        
-        return {
-            "figure": triangle,
-            "sides": [a, b, c]
-        }
-    
-    def get_square(self, side_length, color, label, rotation=0, shift=0):
-        square = Square(side_length=side_length, color=color).rotate(
-            rotation).shift(shift)
-        label = MathTex(label).next_to(square, LEFT)
-        
-        return {"figure": square, "label": label}
-    
     def state(self):
-        st_text = ("Given a right angle triangle, "
-                   "the sum of the squares of the base and the height "
-                   "is equal to the square of the hypotenuse")
+        st_text = read_statement("pythagoras.txt", "en")
         eq_text = "a^2 + b^2 = c^2"
         self.statement = Tex(st_text).to_edge(UP)
         # Create the equation
@@ -37,14 +17,32 @@ class PythagoreanTheorem(Scene):
         self.play(Write(self.equation))
         self.wait()
         
-    def draw_triangle(self):
-        ptB = 0.5 * self.base * LEFT
-        ptC = 0.5 * self.base * RIGHT
-        ptA = 0.5 * self.base * RIGHT + self.height * UP
-        self.triangle = self.get_triangle(ptA, ptB, ptC, WHITE)
+    def get_square(self, side_length, color, label, rotation=0, shift=0):
+        square = Square(side_length=side_length, color=color).rotate(
+            rotation).shift(shift)
+        label = MathTex(label).next_to(square, LEFT)
+        
+        return {"figure": square, "label": label}
+    
+    def get_triangle(self, ptA, ptB, ptC, color, rotation=0, shift=0):
+        # Create the right-angled triangle
+        triangle = Polygon(ptB, ptC, ptA, color=color)
+        
+        labels = VGroup(
+            MathTex("a").next_to(triangle, DOWN),
+            MathTex("b").next_to(triangle, RIGHT),
+            MathTex("c").next_to(triangle.get_center(), UP+LEFT)
+        )
+        
+        return {"figure": triangle, "sides": labels}
+        
+    def draw_triangle(self, color):
+        ptB = np.array([-0.5 * self.base, -1, 0])
+        ptC = np.array([0.5 * self.base, -1, 0])
+        ptA = np.array([0.5 * self.base, self.height - 1, 0])
+        self.triangle = self.get_triangle(ptA, ptB, ptC, color=color)
         # Show triangle and labels
-        self.play(Create(self.triangle["figure"]))
-        self.play(*([Write(side) for side in self.triangle["sides"]]))
+        self.play(Create(self.triangle["figure"]), Write(self.triangle["sides"]))
         self.wait()
         
     def draw_squares(self):
@@ -79,6 +77,8 @@ class PythagoreanTheorem(Scene):
         }
         self.play(
             FadeOut(self.statement),
+            self.triangle["figure"].animate.shift(UP),
+            self.triangle["sides"].animate.shift(UP),
             self.equation.animate.move_to(3 * LEFT + 3 * UP)
         )
         self.play(*([Create(square["figure"]) for square in self.squares.values()]))
@@ -95,85 +95,6 @@ class PythagoreanTheorem(Scene):
                 run_time=2
             )
         
-    def construct(self):
-        # Initiate lengths
-        self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
-        
-        # State the theorem
-        self.state()
-        
-        # Draw the triangle
-        self.draw_triangle()
-        
-        
-        # Draw squares
-        self.draw_squares()
-            
-            
-        # self.play(
-        #     Indicate(equation[2]),
-        #     Indicate(lbl_b),
-        #     Indicate(sq_b),
-        #     run_time=2
-        # )
-        # self.play(
-        #     Indicate(equation[4]),
-        #     Indicate(lbl_c),
-        #     Indicate(sq_c),
-        #     run_time=2
-        # )
-        
-        # # Show final equality
-        # final_equation = MathTex("9", "+", "16", "=", "25").next_to(equation, DOWN)
-        # self.play(Write(final_equation))
-        # self.wait(2)
-        
-        # # Fade out everything except the original equation
-        # self.play(
-        #     FadeOut(triangle),
-        #     FadeOut(label_a), FadeOut(label_b), FadeOut(label_c),
-        #     FadeOut(square_a), FadeOut(square_b), FadeOut(square_c),
-        #     FadeOut(area_a), FadeOut(area_b), FadeOut(area_c),
-        #     FadeOut(final_equation)
-        # )
-        # self.wait()
-        
-        # # Center and scale up the equation for a final emphasis
-        # self.play(
-        #     equation.animate.scale(1.5).move_to(ORIGIN)
-        # )
-        self.wait(2)
-
-
-
-class PythagoreanTheoremProof(Scene):
-    def get_triangle(self, ptA, ptB, ptC, color, rotation=0, shift=0):
-        # Create the right-angled triangle
-        triangle = Polygon(ptB, ptC, ptA, color=color)
-        
-        # Label the sides
-        # a = MathTex("a").next_to(triangle, DOWN)
-        # b = MathTex("b").next_to(triangle, RIGHT)
-        # c = MathTex("c").next_to(triangle.get_center(), UP+LEFT)
-        labels = VGroup(
-            MathTex("a").next_to(triangle, DOWN),
-            MathTex("b").next_to(triangle, RIGHT),
-            MathTex("c").next_to(triangle.get_center(), UP+LEFT)
-        )
-        
-        return {"figure": triangle, "sides": labels}
-        
-    def draw_triangle(self, color):
-        ptB = np.array([-0.5 * self.base, 0, 0])
-        ptC = np.array([0.5 * self.base, 0, 0])
-        ptA = np.array([0.5 * self.base, self.height, 0])
-        self.triangle = self.get_triangle(ptA, ptB, ptC, color=color)
-        # Show triangle and labels
-        # self.play(Create(self.triangle["figure"]))
-        # self.play(*([Write(side) for side in self.triangle["sides"]]))
-        self.play(Create(self.triangle["figure"]), Write(self.triangle["sides"]))
-        self.wait()
-        
     def draw_triangle_copies(self, colors):
         # Create 4 copies of the triangle with different colors
         self.triangles = VGroup(
@@ -188,7 +109,12 @@ class PythagoreanTheoremProof(Scene):
         self.lbl_copies = {"a": a_labels, "b": b_labels, "c": c_labels}
         #[colors["yellow"], colors["orange"], colors["red"], colors["green"]]])
 
-        self.play(Create(self.triangles))
+        self.play(
+            *[FadeOut(square["figure"]) for square in self.squares.values()],
+            *[FadeOut(square["label"]) for square in self.squares.values()],
+            FadeOut(self.equation),
+            Create(self.triangles)
+        )
         self.wait()
     
     def draw_first_arrangement(self, square):
@@ -320,7 +246,7 @@ class PythagoreanTheoremProof(Scene):
             Write(b_squared_text)
         )
         self.wait()
-        
+
     def prove(self):
         # Colors
         colors = {
@@ -341,13 +267,26 @@ class PythagoreanTheoremProof(Scene):
         self.draw_second_arrangement(square=square)
 
         # Conclusion
-        conclusion = Text("c² = a² + b²").scale(0.8).to_edge(DOWN)
-        self.play(Write(conclusion))
+        # conclusion = Text("c² = a² + b²").scale(0.8).to_edge(DOWN)
+        self.play(FadeIn(self.equation))
         self.wait(2)
         
+        
     def construct(self):
+        # Initiate lengths
         self.base, self.height, self.hypotenuse = 4 / 2, 3 / 2, 5 / 2
         
-        self.draw_triangle(color=WHITE)
+        # State the theorem
+        self.state()
         
+        # Draw the triangle
+        self.draw_triangle(WHITE)
+        
+        
+        # Draw squares
+        self.draw_squares()
+        
+        # Proof
         self.prove()
+        
+        self.wait(2)
