@@ -1,6 +1,6 @@
 import re
 
-from typing import Callable, Generator, List
+from typing import Callable, Generator, Dict, List
 
 from manim import *
 import numpy as np
@@ -110,7 +110,12 @@ class VectorSpace(object):
         add_coordinates: bool=False,
         **plane_kwargs
     ):
-        self.origin = origin
+        if origin.shape[0] == 2:
+            self.origin = np.zeros(3)
+            self.origin[:2] = origin
+        else:
+            self.origin = origin
+        self.scale = scale
         x_length = (x_range[1] - x_range[0]) * scale
         y_length = (y_range[1] - y_range[0]) * scale
         kwargs = {
@@ -137,7 +142,10 @@ class VectorSpace(object):
         ]
         self.window = Polygon(*window_points, stroke_width=0.0)
         self.mask_group = [self.window]
-        self.transformable_objects = []
+        self.vector_points: List[np.array] = []
+        self.vectors: Dict[tuple, Arrow] = {}
+        self.vector_angles: Dict[tuple, Dict[str, Angle | MathTex]] = {}
+        self.transformable_objects: List[Mobject] = []
         
     def set_mask(self, mask_points: List[np.array]):
         self.mask = Polygon(*mask_points, stroke_width=0.0)
@@ -167,6 +175,18 @@ class VectorSpace(object):
             return self._get_y_shift()
         raise ValueError("Axis value can only be either x | y")
     
+    def coord_to_point(self, coords: np.array):
+        if isinstance(coords, list):
+            coords = np.asarray(coords)
+        if len(coords.shape) == 1:
+            coords = coords.reshape(-1, 1)
+        else:
+            coords = coords.transpose()
+        return self.plane.c2p(*coords).transpose()
+    
+    def c2p(self, coords: np.array):
+        return self.coord_to_point(coords)
+    
     def _a_point_to_vector(self, point: np.array, **kwargs) -> Mobject:
         return Arrow(self.origin, point, **kwargs)
     
@@ -177,11 +197,7 @@ class VectorSpace(object):
         return vectors
     
     def coord_to_vector(self, coords: np.array, **kwargs) -> List[Mobject]:
-        if len(coords.shape) == 1:
-            coords = coords.reshape(2, -1)
-        else:
-            coords = coords.transpose()
-        points = self.plane.c2p(*coords).transpose()
+        points = self.coord_to_point(coords)
         return self.point_to_vector(points, **kwargs)
     
     def p2v(self, points: np.array, **kwargs) -> List[Mobject]:
@@ -190,10 +206,81 @@ class VectorSpace(object):
     def c2v(self, coords: np.array, **kwargs) -> List[Mobject]:
         return self.coord_to_vector(coords, **kwargs)
     
+    def add_vector_points(self, *vector_points, **kwargs):
+        for point in vector_points:
+            tp = tuple(point)
+            if tp not in self.vectors:
+                self.vector_points.append(tp)
+                self.vectors[tp] = self._a_point_to_vector(point, **kwargs)
+                
+    def add_vector_angles(self, points: np.array, **kwargs):
+        for point in points:
+            tp = tuple(point)
+            # print(tp)
+            # print(self.vector_angles)
+            # input("check in add vector...")
+            if tp not in self.vector_angles:
+                angle, angle_label = self.get_vector_angle(point, **kwargs)
+                self.vector_angles[tp] = {
+                    "angle": angle,
+                    "label": angle_label
+                }
+    
+    def update_vector_key(self, old_key, new_key):
+        self.vectors[new_key] = self.vectors.pop(old_key)
+        self.vector_angles[new_key] = self.vector_angles.pop(old_key)
+        self.vector_points.remove(old_key)
+        self.vector_points.append(new_key)
+        
+    def add_vector_to_key(self, key: str, vector: Arrow):
+        self.vectors[key] = vector
+                
+    def get_angle_from_vector(self, vector, **kwargs):
+        # Create initial angle indicator
+        angle = Angle(
+            self.plane.x_axis, 
+            vector, 
+            radius=0.5 * self.scale,
+            **kwargs
+        )
+        angle_label = MathTex(r"\theta").next_to(
+            angle, UR, buff=0.1).scale(0.7 * self.scale)
+        return angle, angle_label
+    
+    def get_vector_angle(self, point: np.array, **kwargs) -> Angle:
+        tp = tuple(point)
+        # print(tp)
+        # print(self.vectors)
+        # print(tp not in self.vectors)
+        # input("check...")
+        if tp not in self.vectors:
+            err = (f"Vector {point} not present on space. "
+                    "Add it before getting angle")
+            raise ValueError(err)
+        vector = self.vectors[tp]
+        return self.get_angle_from_vector(vector, **kwargs)
+    
     def add_transformable_objects(self, *mobjects):
         for mob in mobjects:
             if mob not in self.transformable_objects:
                 self.transformable_objects.append(mob)
+                
+    def remove_all_transformable_objects(self):
+        self.transformable_objects = []
+                
+    def remove_all_vectors(self):
+        self.vector_points = []
+        self.vectors = {}
+        self.vector_angles = {}
+        
+    def remove_vectors(self, points: np.array):
+        for point in points:
+            tp = tuple(point)
+            if tp in self.vectors:
+                self.vector_points.remove(tp)
+                self.vectors.pop(tp)
+            if tp in self.vector_angles:
+                self.vector_angles.pop(tp)
     
     def _apply_transform(self, func: Callable) -> List[Transform]:
         return [
@@ -201,6 +288,10 @@ class VectorSpace(object):
             *[
                 ApplyPointwiseFunction(func, mob) 
                 for mob in self.transformable_objects
+            ],
+            *[
+                ApplyPointwiseFunction(func, vector) 
+                for vector in self.vectors.values()
             ]
         ]
         
@@ -217,14 +308,28 @@ class VectorSpace(object):
 
 
 class MatrixDrawing(object):
-    def __init__(self, matrix: np.array, position: np.array, **kwargs):
+    def __init__(
+        self,
+        matrix: np.array,
+        position: np.array,
+        elem_color=BLUE,
+        elem_range=[1, -1],
+        include_background_rectangle: bool=False,
+        **kwargs
+    ):
         self.matrix = matrix
         self.position = position
-        self.draw_self(**kwargs)
+        self.include_background_rectangle = include_background_rectangle
+        self.draw_self(elem_color, elem_range, **kwargs)
         
-    def draw_self(self, **kwargs):
+    def move_to(self, position: np.array):
+        self.tex.move_to(position)
+        
+    def draw_self(self, elem_color=BLUE, elem_range=[1, -1], **kwargs):
         self.tex = matrix_to_tex(self.matrix, **kwargs).move_to(self.position)
-        self.tex[0][1:-1].set_color(BLUE)
+        self.tex[0][elem_range[0]:elem_range[1]].set_color(elem_color)
+        if self.include_background_rectangle:
+            self.tex.add_background_rectangle()
         
     def linear_transform(self, vector: np.array, **kwargs) -> Generator:
         if len(vector.shape) == 1:
@@ -246,5 +351,8 @@ class MatrixDrawing(object):
         tex = MathTex(" = " + result, **kwargs).next_to(mul_tex, RIGHT)
         tex[0][2:-1].set_color(GREEN)
         yield tex
+
+# # ffmpeg -i media/videos/numbers/480p15/GraphUniverseScene.mp4 -i numbers_graph_universe.mp3 -shortest -c copy -map 0:v:0 -map 1:a:0 output.mp4
+# # ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp4
 
 
