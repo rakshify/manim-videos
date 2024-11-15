@@ -20,6 +20,7 @@ class MatrixGeometryScene(VoicedScene):
         mask_points: list=EXAMPLE_MASK,
         add_bases: bool=False,
         add_base_labels: bool=False,
+        add_background_plane: bool=False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -30,7 +31,8 @@ class MatrixGeometryScene(VoicedScene):
             y_range=y_range,
             mask_points=mask_points,
             add_bases=add_bases,
-            add_base_labels=add_base_labels
+            add_base_labels=add_base_labels,
+            add_background_plane=add_background_plane
         )
         self.animation_map.update({
             "draw_vector_braces": self.draw_vector_braces,
@@ -60,6 +62,7 @@ class MatrixGeometryScene(VoicedScene):
         mask_points: list=EXAMPLE_MASK,
         add_bases: bool=False,
         add_base_labels: bool=False,
+        add_background_plane: bool=False
     ):
         # Axes range and length
         self.scale = scale
@@ -67,13 +70,18 @@ class MatrixGeometryScene(VoicedScene):
         self.y_range = y_range
         
         # Set space
+        if isinstance(origin, list):
+            origin = np.asarray(origin)
         self.space = VectorSpace(
-            origin, self.scale, x_range, y_range
+            origin, self.scale, x_range, y_range,
+            add_background_plane=add_background_plane
         )
         # Set mask
         self.space.set_mask(mask_points)
         
         # Add space to scene
+        if add_background_plane:
+            self.add(self.space.bg)
         self.add(self.space.plane)
         self.add(*(self.space.mask_group))
         
@@ -98,13 +106,25 @@ class MatrixGeometryScene(VoicedScene):
         ).next_to(self.basej, 0.5 * self.scale * LEFT)
         self.labeli_perm = self.labeli.copy()
         self.labelj_perm = self.labelj.copy()
+        
+    def remove_basis_labels(self):
+        if hasattr(self, "labeli"):
+            self.remove(self.labeli, self.labelj)
             
     def add_base_labels(self):
         if hasattr(self, 'labeli'):
             return
         self._create_basis_labels()
         self.add(self.labeli, self.labelj)
-        
+
+    def add_transformable_objects(self, *mobjects):
+        self.add(*mobjects)
+        self.space.add_transformable_objects(*mobjects)
+
+    def remove_transformable_objects(self, *mobjects):
+        self.remove(*mobjects)
+        self.space.remove_transformable_objects(*mobjects)
+
     def _add_vectors_on_space(
         self,
         coords: np.array=EXAMPLE_VECTORS,

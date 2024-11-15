@@ -108,6 +108,7 @@ class VectorSpace(object):
         x_range: list,
         y_range: list,
         add_coordinates: bool=False,
+        add_background_plane: bool=False,
         **plane_kwargs
     ):
         if origin.shape[0] == 2:
@@ -129,6 +130,16 @@ class VectorSpace(object):
         self.plane = NumberPlane(**kwargs).move_to(self.origin)
         if add_coordinates:
             self.plane = self.plane.add_coordinates()
+        if add_background_plane:
+            background_line_style = {
+                "stroke_width": 1,
+                "stroke_color": GRAY
+            }
+            axis_config = {"stroke_color": GRAY}
+            self.bg = NumberPlane(
+                background_line_style=background_line_style,
+                axis_config=axis_config, **kwargs
+            ).move_to(self.origin)
         
         left = self.plane.x_axis.get_start()
         right = self.plane.x_axis.get_end()
@@ -264,6 +275,11 @@ class VectorSpace(object):
         for mob in mobjects:
             if mob not in self.transformable_objects:
                 self.transformable_objects.append(mob)
+    
+    def remove_transformable_objects(self, *mobjects):
+        for mob in mobjects:
+            if mob in self.transformable_objects:
+                self.transformable_objects.remove(mob)
                 
     def remove_all_transformable_objects(self):
         self.transformable_objects = []
@@ -282,7 +298,7 @@ class VectorSpace(object):
             if tp in self.vector_angles:
                 self.vector_angles.pop(tp)
     
-    def _apply_transform(self, func: Callable) -> List[Transform]:
+    def apply_transform(self, func: Callable) -> List[Transform]:
         return [
             ApplyPointwiseFunction(func, self.plane),
             *[
@@ -291,6 +307,20 @@ class VectorSpace(object):
             ],
             *[
                 ApplyPointwiseFunction(func, vector) 
+                for vector in self.vectors.values()
+            ]
+        ]
+    
+    def apply_complex_function(self, func: Callable) -> List[Transform]:
+        self.plane.prepare_for_nonlinear_transform(100)
+        return [
+            ApplyComplexFunction(func, self.plane),
+            *[
+                ApplyComplexFunction(func, mob) 
+                for mob in self.transformable_objects
+            ],
+            *[
+                ApplyComplexFunction(func, vector) 
                 for vector in self.vectors.values()
             ]
         ]
@@ -304,7 +334,7 @@ class VectorSpace(object):
             new_matrix[:2, :2] = matrix
             matrix = new_matrix
         func = lambda point: self._linear_transform(point, matrix)
-        return self._apply_transform(func)
+        return self.apply_transform(func)
 
 
 class MatrixDrawing(object):
@@ -326,8 +356,14 @@ class MatrixDrawing(object):
         self.tex.move_to(position)
         
     def draw_self(self, elem_color=BLUE, elem_range=[1, -1], **kwargs):
-        self.tex = matrix_to_tex(self.matrix, **kwargs).move_to(self.position)
-        self.tex[0][elem_range[0]:elem_range[1]].set_color(elem_color)
+        if not isinstance(elem_color, list):
+            elem_color = [elem_color]
+        if not isinstance(elem_range[0], list):
+            elem_range = [elem_range]
+        self.tex_string = matrix_to_tex_string(self.matrix)
+        self.tex = MathTex(self.tex_string, **kwargs).move_to(self.position)
+        for color, rng in zip(elem_color, elem_range):
+            self.tex[0][rng[0]:rng[1]].set_color(color)
         if self.include_background_rectangle:
             self.tex.add_background_rectangle()
         
@@ -351,8 +387,3 @@ class MatrixDrawing(object):
         tex = MathTex(" = " + result, **kwargs).next_to(mul_tex, RIGHT)
         tex[0][2:-1].set_color(GREEN)
         yield tex
-
-# # ffmpeg -i media/videos/numbers/480p15/GraphUniverseScene.mp4 -i numbers_graph_universe.mp3 -shortest -c copy -map 0:v:0 -map 1:a:0 output.mp4
-# # ffmpeg -f concat -safe 0 -i mylist.txt -c copy output.mp4
-
-

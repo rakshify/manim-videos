@@ -61,8 +61,10 @@ class VoicedScene(Scene):
             duration = end - offset
             offset = end
             partitions = animation.get("partitions", 1)
-            wait_time = animation.get("wait_partitions", 1)
+            wait_partitions = animation.get("wait_partitions", 1)
+            wait_time = animation.get("wait_time", wait_partitions)
             duration = (duration - wait_time) / partitions
+            wait_time = wait_time / wait_partitions
             if duration < 0:
                 msg = (f"Something went wrong. Got start = {offset}, "
                        f"end = {end}, wait_time = {wait_time}"
@@ -71,7 +73,7 @@ class VoicedScene(Scene):
                 sys.exit(1)
             kwargs = animation.get("kwargs", {})
             self.animation_funcs.append(
-                partial(func, run_time=duration, wait_time=1, **kwargs)
+                partial(func, run_time=duration, wait_time=wait_time, **kwargs)
             )
     
     def construct(self):
